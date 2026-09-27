@@ -63,7 +63,7 @@
         </div>
     </div>
 
-    <script>
+        <script>
         const base_url = "https://supabase.co";
         const api_key = "sb_publishable_5uZB05G4Wwi2h5I0dw4ogw_OQKeZPfQ";
 
@@ -115,6 +115,7 @@
                 let coins = 0;
                 if (get_res.ok) {
                     let res_data = await get_res.json();
+                    // ИСПРАВЛЕНО: Правильный выбор первого элемента из массива ответов REST API Supabase
                     if (res_data && res_data.length > 0) {
                         coins = res_data[0].coins || 0;
                     }
@@ -151,5 +152,3 @@
 
         update_screen();
     </script>
-</body>
-</html>

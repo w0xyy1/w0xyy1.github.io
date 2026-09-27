@@ -25,8 +25,8 @@
         <h1>&lt; PROJECT: VECTOR &gt;</h1>
         
         <div class="auth-bar">
-            <div id="auth-info">Инициализация защищенного соединения...</div>
-            <button id="auth-action-btn" class="auth-btn" style="display: none;"></button>
+            <div id="auth-info">СТАТУС: ТРЕБУЕТСЯ АВТОРИЗАЦИЯ ДЛЯ СИНХРОНИЗАЦИИ</div>
+            <button id="auth-action-btn" class="auth-btn">ВХОД ЧЕРЕЗ GOOGLE</button>
         </div>
 
         <p>Добро пожаловать на официальную страницу дистрибуции внутриигровых ресурсов для игры PROJECT: VECTOR (ПК / Android).</p>
@@ -63,114 +63,93 @@
         </div>
     </div>
 
-    <script type="module">
-        const _supabaseUrl = "https://supabase.co";
-        const _supabaseKey = "sb_publishable_5uZB05G4Wwi2h5I0dw4ogw_OQKeZPfQ"; 
-        
-        let supabase;
-        let currentUserId = null;
+    <script>
+        const base_url = "https://supabase.co";
+        const api_key = "sb_publishable_5uZB05G4Wwi2h5I0dw4ogw_OQKeZPfQ";
 
-        const authInfoEl = document.getElementById('auth-info');
-        const actionBtnEl = document.getElementById('auth-action-btn');
+        const info = document.getElementById('auth-info');
+        const btn = document.getElementById('auth-action-btn');
 
-        async function initAuth() {
-            try {
-                const module = await import('https://esm.sh');
-                supabase = module.createClient(_supabaseUrl, _supabaseKey);
-                
-                const { data: { session } } = await supabase.auth.getSession();
-                
-                supabase.auth.onAuthStateChange((event, currentSession) => {
-                    updateUI(currentSession);
-                });
+        let user_id = localStorage.getItem('v_uid') || null;
 
-                updateUI(session);
-            } catch (err) {
-                console.error("Ошибка инициализации Supabase:", err);
-                authInfoEl.innerText = "ОШИБКА ПОДКЛЮЧЕНИЯ К СЕРВЕРУ";
-            }
-        }
-
-        function updateUI(session) {
-            if (session && session.user) {
-                currentUserId = session.user.id;
-                authInfoEl.innerHTML = `СТАТУС: АВТОРИЗОВАН <br> UID: ${currentUserId.toUpperCase()}`;
-                actionBtnEl.innerText = "ВЫЙТИ";
-                actionBtnEl.style.display = "block";
-                actionBtnEl.onclick = logOut;
+        function update_screen() {
+            if (user_id) {
+                info.innerHTML = `СТАТУС: АВТОРИЗОВАН <br> UID: ${user_id.toUpperCase()}`;
+                btn.innerText = "ВЫЙТИ";
+                btn.onclick = logout;
             } else {
-                currentUserId = null;
-                authInfoEl.innerHTML = "СТАТУС: ТРЕБУЕТСЯ АВТОРИЗАЦИЯ ДЛЯ СИНХРОНИЗАЦИИ";
-                actionBtnEl.innerText = "ВХОД ЧЕРЕЗ GOOGLE";
-                actionBtnEl.style.display = "block";
-                actionBtnEl.onclick = logIn;
+                info.innerHTML = "СТАТУС: ТРЕБУЕТСЯ АВТОРИЗАЦИЯ ДЛЯ СИНХРОНИЗАЦИИ";
+                btn.innerText = "ВХОД ЧЕРЕЗ GOOGLE";
+                btn.onclick = login;
             }
         }
 
-        async function logIn() {
-            if (!supabase) return;
-            try {
-                await supabase.auth.signInWithOAuth({
-                    provider: 'google',
-                    options: {
-                        redirectTo: window.location.href
-                    }
-                });
-            } catch (err) {
-                console.error("Ошибка авторизации:", err);
-            }
+        function login() {
+            user_id = "test_pc_developer_01";
+            localStorage.setItem('v_uid', user_id);
+            update_screen();
+            alert("Тестовый вход выполнен!\nВ боевом режиме здесь откроется окно Google OAuth.\nИспользуется UID: " + user_id);
         }
 
-        async function logOut() {
-            if (!supabase) return;
-            await supabase.auth.signOut();
+        function logout() {
+            user_id = null;
+            localStorage.removeItem('v_uid');
+            update_screen();
         }
 
-        async function processPurchase(priceRub, coinsToAdd) {
-            if (!supabase) return;
-
-            if (!currentUserId) {
+        async function buy(price, count) {
+            if (!user_id) {
                 alert("КРИТИЧЕСКАЯ ОШИБКА: Авторизуйтесь через Google перед проведением транзакции!");
-                logIn();
+                login();
                 return;
             }
 
-            alert(`[ТЕСТОВЫЙ РЕЖИМ]: Имитация оплаты через Lava.ru успешно пройдена.\nСумма: ${priceRub} RUB\nПакет: ${coinsToAdd} монеток\nНачался процесс начисления на UID: ${currentUserId}`);
+            alert(`[ТЕСТОВЫЙ РЕЖИМ]: Имитация оплаты через Lava.ru успешно пройдена.\nСумма: ${price} RUB\nПакет: ${count} монеток\nОтправка запроса в Supabase...`);
 
             try {
-                const { data: profile, error: fetchError } = await supabase
-                    .from('profiles')
-                    .select('coins')
-                    .eq('id', currentUserId)
-                    .maybeSingle();
+                let get_res = await fetch(`${base_url}/rest/v1/profiles?id=eq.${user_id}&select=coins`, {
+                    method: 'GET',
+                    headers: { 'apikey': api_key, 'Authorization': `Bearer ${api_key}` }
+                });
 
-                if (fetchError) {
-                    console.error(fetchError);
-                    alert("Ошибка базы данных. Убедитесь, что таблица 'profiles' создана.");
-                    return;
+                let coins = 0;
+                if (get_res.ok) {
+                    let res_data = await get_res.json();
+                    if (res_data && res_data.length > 0) {
+                        coins = res_data[0].coins || 0;
+                    }
                 }
 
-                const currentCoins = profile ? profile.coins : 0;
-                const newCoinsBalance = currentCoins + coinsToAdd;
+                let new_balance = coins + count;
 
-                const { error: updateError } = await supabase
-                    .from('profiles')
-                    .upsert({ id: currentUserId, coins: newCoinsBalance });
+                let post_res = await fetch(`${base_url}/rest/v1/profiles`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': api_key,
+                        'Authorization': `Bearer ${api_key}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'resolution=merge-duplicates'
+                    },
+                    body: JSON.stringify({ id: user_id, coins: new_balance })
+                });
 
-                if (updateError) {
-                    alert("Не удалось обновить баланс: " + updateError.message);
+                if (post_res.ok) {
+                    alert(`УСПЕШНО: Баланс в облаке Supabase обновлен!\nДобавлено: ${count} Vector Coins\nТекущий баланс: ${new_balance}`);
                 } else {
-                    alert(`УСПЕШНО: Баланс обновлен! Текущий кошелек: ${newCoinsBalance} Vector Coins.`);
+                    let err_text = await post_res.text();
+                    console.error(err_text);
+                    alert("Ошибка записи в базу данных. Убедитесь, что выполнили SQL-запрос в Supabase Editor.");
                 }
             } catch (err) {
                 console.error(err);
+                alert("Ошибка сетевого запроса к серверу.");
             }
         }
 
-        document.getElementById('btn-pack1').onclick = () => processPurchase(95, 1000);
-        document.getElementById('btn-pack2').onclick = () => processPurchase(380, 5000);
+        document.getElementById('btn-pack1').onclick = () => buy(95, 1000);
+        document.getElementById('btn-pack2').onclick = () => buy(380, 5000);
 
-        initAuth();
+        update_screen();
     </script>
 </body>
 </html>

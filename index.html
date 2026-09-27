@@ -4,13 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PROJECT: VECTOR — Официальный сайт игры</title>
+    <script src="https://jsdelivr.net"></script>
     <style>
         body { background-color: #030a03; color: #00ff33; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 40px; }
         .container { max-width: 800px; margin: 0 auto; border: 2px solid #00ff33; padding: 30px; box-shadow: 0 0 15px rgba(0,255,51,0.2); }
         h1, h2 { color: #33ff66; text-transform: uppercase; border-bottom: 1px solid #00ff33; padding-bottom: 10px; }
+        .auth-bar { border: 1px solid #00ff33; padding: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; background-color: #051405; }
+        .auth-btn { background-color: #030a03; color: #00ff33; border: 1px solid #00ff33; padding: 8px 16px; font-family: inherit; cursor: pointer; text-transform: uppercase; font-weight: bold; }
+        .auth-btn:hover { background-color: #00ff33; color: #030a03; }
         .product-grid { display: flex; gap: 20px; margin: 30px 0; }
-        .product-card { border: 1px dashed #00ff33; padding: 20px; flex: 1; text-align: center; }
+        .product-card { border: 1px dashed #00ff33; padding: 20px; flex: 1; text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
         .price { font-size: 24px; font-weight: bold; margin: 15px 0; }
+        .buy-btn { background-color: #00ff33; color: #030a03; border: none; padding: 10px 20px; font-family: inherit; font-weight: bold; cursor: pointer; text-transform: uppercase; width: 100%; margin-top: 15px; }
+        .buy-btn:hover { background-color: #030a03; color: #00ff33; border: 1px solid #00ff33; }
         .footer { margin-top: 50px; font-size: 12px; color: #00aa22; line-height: 1.6; border-top: 1px solid #00ff33; padding-top: 20px; }
         a { color: #33ff66; }
     </style>
@@ -18,6 +24,12 @@
 <body>
     <div class="container">
         <h1>&lt; PROJECT: VECTOR &gt;</h1>
+        
+        <div class="auth-bar">
+            <div id="auth-info">Инициализация защищенного соединения...</div>
+            <button id="auth-action-btn" class="auth-btn" style="display: none;"></button>
+        </div>
+
         <p>Добро пожаловать на официальную страницу дистрибуции внутриигровых ресурсов для игры PROJECT: VECTOR (ПК / Android).</p>
         
         <h2>Внутриигровая валюта (Vector Coins)</h2>
@@ -25,14 +37,20 @@
 
         <div class="product-grid">
             <div class="product-card">
-                <h3>PACK: 1000 COINS</h3>
-                <div class="price">0.99 USD / 95 RUB</div>
-                <p>Базовый пакет для кастомизации</p>
+                <div>
+                    <h3>PACK: 1000 COINS</h3>
+                    <div class="price">0.99 USD / 95 RUB</div>
+                    <p>Базовый пакет для кастомизации</p>
+                </div>
+                <button class="buy-btn" onclick="processPurchase(95, 'pack_1000')">Приобрести</button>
             </div>
             <div class="product-card">
-                <h3>PACK: 5000 COINS</h3>
-                <div class="price">3.99 USD / 380 RUB</div>
-                <p>Расширенный пакет снабжения</p>
+                <div>
+                    <h3>PACK: 5000 COINS</h3>
+                    <div class="price">3.99 USD / 380 RUB</div>
+                    <p>Расширенный пакет снабжения</p>
+                </div>
+                <button class="buy-btn" onclick="processPurchase(380, 'pack_5000')">Приобрести</button>
             </div>
         </div>
 
@@ -45,6 +63,99 @@
             <p>Условия обслуживания: Покупка виртуальной валюты является окончательной. Возврат средств не предусмотрен, так как цифровой товар предоставляется в пользование мгновенно. Совершая платеж, вы соглашаетесь с тем, что приобретаете лицензию на использование виртуальных предметов внутри программного обеспечения PROJECT: VECTOR.</p>
         </div>
     </div>
+
+    <script>
+        const _supabaseUrl = "https://supabase.co";
+        const _supabaseKey = "sb_publishable_5uZB05G4Wwi2h5I0dw4ogw_OQKeZPfQ";
+        const supabase = window.supabase.createClient(_supabaseUrl, _supabaseKey);
+
+        let currentUserId = null;
+
+        async function initAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+
+            supabase.auth.onAuthStateChange((event, currentSession) => {
+                updateUI(currentSession);
+            });
+
+            updateUI(session);
+        }
+
+        function updateUI(session) {
+            const authInfoEl = document.getElementById('auth-info');
+            const actionBtnEl = document.getElementById('auth-action-btn');
+
+            if (session && session.user) {
+                currentUserId = session.user.id;
+                authInfoEl.innerHTML = `СТАТУС: АВТОРИЗОВАН <br> UID: ${currentUserId.toUpperCase()}`;
+                actionBtnEl.innerText = "ВЫЙТИ";
+                actionBtnEl.style.display = "block";
+                actionBtnEl.onclick = logOut;
+            } else {
+                currentUserId = null;
+                authInfoEl.innerHTML = "СТАТУС: ТРЕБУЕТСЯ АВТОРИЗАЦИЯ ДЛЯ СИНХРОНИЗАЦИИ";
+                actionBtnEl.innerText = "ВХОД ЧЕРЕЗ GOOGLE";
+                actionBtnEl.style.display = "block";
+                actionBtnEl.onclick = logIn;
+            }
+        }
+
+        async function logIn() {
+            await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.href
+                }
+            });
+        }
+
+        async function logOut() {
+            await supabase.auth.signOut();
+        }
+
+        async function processPurchase(priceRub, packId) {
+            if (!currentUserId) {
+                alert("КРИТИЧЕСКАЯ ОШИБКА: Авторизуйтесь через Google перед проведением транзакции, чтобы монеты дошли до вашего аккаунта!");
+                logIn();
+                return;
+            }
+
+            let coinsToAdd = packId === 'pack_1000' ? 1000 : 5000;
+            
+            alert(`[ТЕСТОВЫЙ РЕЖИМ]: Имитация оплаты через Lava.ru успешно пройдена.\nСумма: ${priceRub} RUB\nПакет: ${coinsToAdd} монеток\nНачался процесс начисления на UID: ${currentUserId}`);
+
+            try {
+                const { data: profile, error: fetchError } = await supabase
+                    .from('profiles')
+                    .select('coins')
+                    .eq('id', currentUserId)
+                    .maybeSingle();
+
+                if (fetchError) {
+                    console.error("Ошибка получения данных:", fetchError);
+                    alert("Ошибка подключения к базе данных. Проверьте таблицу 'profiles'.");
+                    return;
+                }
+
+                const currentCoins = profile ? profile.coins : 0;
+                const newCoinsBalance = currentCoins + coinsToAdd;
+
+                const { error: updateError } = await supabase
+                    .from('profiles')
+                    .upsert({ id: currentUserId, coins: newCoinsBalance });
+
+                if (updateError) {
+                    console.error("Ошибка обновления баланса:", updateError);
+                    alert("Не удалось обновить баланс в базе данных.");
+                } else {
+                    alert(`УСПЕШНО: Баланс в облаке Supabase обновлен! Добавлено ${coinsToAdd} Vector Coins.\nТекущий баланс: ${newCoinsBalance}`);
+                }
+            } catch (err) {
+                console.error("Критическое исключение:", err);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', initAuth);
+    </script>
 </body>
 </html>
-

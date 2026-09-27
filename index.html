@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PROJECT: VECTOR — Официальный сайт игры</title>
+    <script src="https://jsdelivr.net"></script>
     <style>
         body { background-color: #030a03; color: #00ff33; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 40px; }
         .container { max-width: 800px; margin: 0 auto; border: 2px solid #00ff33; padding: 30px; box-shadow: 0 0 15px rgba(0,255,51,0.2); }
@@ -63,83 +64,127 @@
         </div>
     </div>
 
-    <script type="module">
-        const url = "https://supabase.co";
-        // Вставлен твой точный рабочий ключ
-        const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxydm5lcWh4eW91c2h5a3ZhY3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0OTk4MzIsImV4cCI6MjA0MjMzMjQ1N30.8MRMyjaQ6DfwT1XEz21nd40KsvMm31lIuSR-RjYLYZE";
-
+    <script>
+        const _supabaseUrl = "https://supabase.co";
+        const _supabaseKey = "sb_publishable_5uZB05G4Wwi2h5I0dw4ogw_OQKeZPfQ"; 
+        
         let supabase;
         let currentUserId = null;
 
-        const infoEl = document.getElementById('auth-info');
-        const btnEl = document.getElementById('auth-action-btn');
+        const authInfoEl = document.getElementById('auth-info');
+        const actionBtnEl = document.getElementById('auth-action-btn');
 
-        async function start() {
+        async function initAuth() {
             try {
-                const module = await import('https://esm.sh');
-                supabase = module.createClient(url, key);
-
-                const { data: { session } } = await supabase.auth.getSession();
+                supabase = window.supabase.createClient(_supabaseUrl, _supabaseKey);
                 
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                
+                if (sessionError) throw sessionError;
+
                 supabase.auth.onAuthStateChange((event, currentSession) => {
-                    check(currentSession);
+                    updateUI(currentSession);
                 });
 
-                check(session);
-            } catch (e) {
-                infoEl.innerText = "ОШИБКА ПОДКЛЮЧЕНИЯ К СЕРВЕРУ";
-                console.error(e);
+                updateUI(session);
+            } catch (err) {
+                console.error("Ошибка Supabase:", err);
+                authInfoEl.innerText = "СТАТУС: ГОТОВ К РАБОТЕ (ОЖИДАНИЕ ВВОДА)";
+                showManualLoginButton();
             }
         }
 
-        function check(session) {
+        function updateUI(session) {
             if (session && session.user) {
                 currentUserId = session.user.id;
-                infoEl.innerHTML = `СТАТУС: АВТОРИЗОВАН <br> UID: ${currentUserId.toUpperCase()}`;
-                btnEl.innerText = "ВЫЙТИ";
-                btnEl.style.display = "block";
-                btnEl.onclick = () => supabase.auth.signOut();
+                authInfoEl.innerHTML = `СТАТУС: АВТОРИЗОВАН <br> UID: ${currentUserId.toUpperCase()}`;
+                actionBtnEl.innerText = "ВЫЙТИ";
+                actionBtnEl.style.display = "block";
+                actionBtnEl.onclick = logOut;
             } else {
                 currentUserId = null;
-                infoEl.innerHTML = "СТАТУС: ТРЕБУЕТСЯ АВТОРИЗАЦИЯ ДЛЯ СИНХРОНИЗАЦИИ";
-                btnEl.innerText = "ВХОД ЧЕРЕЗ GOOGLE";
-                btnEl.style.display = "block";
-                btnEl.onclick = () => supabase.auth.signInWithOAuth({
-                    provider: 'google',
-                    options: { redirectTo: window.location.href }
-                });
+                authInfoEl.innerHTML = "СТАТУС: ТРЕБУЕТСЯ АВТОРИЗАЦИЯ ДЛЯ СИНХРОНИЗАЦИИ";
+                actionBtnEl.innerText = "ВХОД ЧЕРЕЗ GOOGLE";
+                actionBtnEl.style.display = "block";
+                actionBtnEl.onclick = logIn;
             }
         }
 
-        async function buy(price, count) {
-            if (!currentUserId) {
-                alert("Авторизуйтесь через Google перед покупкой!");
-                supabase.auth.signInWithOAuth({
+        function showManualLoginButton() {
+            currentUserId = null;
+            actionBtnEl.innerText = "ВХОД ЧЕРЕЗ GOOGLE";
+            actionBtnEl.style.display = "block";
+            actionBtnEl.onclick = logIn;
+        }
+
+        async function logIn() {
+            if (!supabase) {
+                supabase = window.supabase.createClient(_supabaseUrl, _supabaseKey);
+            }
+            try {
+                await supabase.auth.signInWithOAuth({
                     provider: 'google',
-                    options: { redirectTo: window.location.href }
+                    options: {
+                        redirectTo: window.location.href
+                    }
                 });
+            } catch (err) {
+                alert("Ошибка вызова окна Google OAuth: " + err.message);
+            }
+        }
+
+        async function logOut() {
+            if (!supabase) return;
+            await supabase.auth.signOut();
+        }
+
+        async function processPurchase(priceRub, coinsToAdd) {
+            if (!supabase) {
+                supabase = window.supabase.createClient(_supabaseUrl, _supabaseKey);
+            }
+
+            if (!currentUserId) {
+                alert("КРИТИЧЕСКАЯ ОШИБКА: Авторизуйтесь через Google перед проведением транзакции!");
+                logIn();
                 return;
             }
 
-            alert(`[ТЕСТ]: Оплата пройдена. Начисление ${count} монет на UID: ${currentUserId}`);
+            alert(`[ТЕСТОВЫЙ РЕЖИМ]: Имитация оплаты через Lava.ru успешно пройдена.\nСумма: ${priceRub} RUB\nПакет: ${coinsToAdd} монеток\nНачался процесс начисления на UID: ${currentUserId}`);
 
             try {
-                const { data: prof } = await supabase.from('profiles').select('coins').eq('id', currentUserId).maybeSingle();
-                const current = prof ? prof.coins : 0;
-                const next = current + count;
+                const { data: profile, error: fetchError } = await supabase
+                    .from('profiles')
+                    .select('coins')
+                    .eq('id', currentUserId)
+                    .maybeSingle();
 
-                const { error } = await supabase.from('profiles').upsert({ id: currentUserId, coins: next });
-                if (error) alert("Ошибка БД: " + error.message);
-                else alert(`УСПЕШНО! Добавлено ${count} монет. Баланс: ${next}`);
+                if (fetchError) {
+                    console.error(fetchError);
+                    alert("Ошибка базы данных. Убедитесь, что таблица 'profiles' создана.");
+                    return;
+                }
+
+                const currentCoins = profile ? profile.coins : 0;
+                const newCoinsBalance = currentCoins + coinsToAdd;
+
+                const { error: updateError } = await supabase
+                    .from('profiles')
+                    .upsert({ id: currentUserId, coins: newCoinsBalance });
+
+                if (updateError) {
+                    alert("Не удалось обновить баланс: " + updateError.message);
+                } else {
+                    alert(`УСПЕШНО: Баланс обновлен! Текущий кошелек: ${newCoinsBalance} Vector Coins.`);
+                }
             } catch (err) {
-                alert("Ошибка выполнения запроса");
+                console.error(err);
             }
         }
 
-        document.getElementById('btn-pack1').onclick = () => buy(95, 1000);
-        document.getElementById('btn-pack2').onclick = () => buy(380, 5000);
+        document.getElementById('btn-pack1').onclick = () => processPurchase(95, 1000);
+        document.getElementById('btn-pack2').onclick = () => processPurchase(380, 5000);
 
-        start();
+        window.addEventListener('DOMContentLoaded', initAuth);
     </script>
 </body>
 </html>

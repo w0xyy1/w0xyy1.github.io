@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PROJECT: VECTOR — Официальный сайт игры</title>
+    <!-- Используем стабильный CDN-пакет для глобальной регистрации объекта Supabase -->
+    <script src="https://jsdelivr.net"></script>
     <style>
         body { background-color: #030a03; color: #00ff33; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 40px; }
         .container { max-width: 800px; margin: 0 auto; border: 2px solid #00ff33; padding: 30px; box-shadow: 0 0 15px rgba(0,255,51,0.2); }
@@ -63,25 +65,25 @@
         </div>
     </div>
 
-    <script type="module">
-        import { createClient } from 'https://jsdelivr.net'
-
+    <script>
         const _supabaseUrl = "https://supabase.co";
-        const _supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxydm5lcWh4eW91c2h5a3ZhY3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0OTk4MzIsImV4cCI6MjEwNjA3NTgzMn0.8MRMyjaQ6DfwT1XEz21nd40KsvMm31lIuSR-RjYLYZE"; 
+        const _supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxydm5lcWh4eW91c2h5a3ZhY3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0OTk4MzIsImV4cCI6MjEwNjA3NTgzMn0.8MRMyjaQ6DfwT1XEz21nd40KsvMm31lIuSR-RjYLYZE";
         
-        const supabase = createClient(_supabaseUrl, _supabaseKey);
+        const supabase = window.supabase.createClient(_supabaseUrl, _supabaseKey);
         let currentUserId = null;
 
         async function initAuth() {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
+                
                 supabase.auth.onAuthStateChange((event, currentSession) => {
                     updateUI(currentSession);
                 });
+
                 updateUI(session);
             } catch (err) {
                 console.error("Ошибка инициализации сессии:", err);
-                document.getElementById('auth-info').innerText = "ОШИБКА СЕТЕВОГО ПОДКЛЮЧЕНИЯ К SUPABASE";
+                document.getElementById('auth-info').innerText = "ОШИБКА СЕТЕВОГО ПОДКЛЮЧЕНИЯ";
             }
         }
 
@@ -94,17 +96,17 @@
                 authInfoEl.innerHTML = `СТАТУС: АВТОРИЗОВАН <br> UID: ${currentUserId.toUpperCase()}`;
                 actionBtnEl.innerText = "ВЫЙТИ";
                 actionBtnEl.style.display = "block";
-                actionBtnEl.onclick = logOut;
+                actionBtnEl.onclick = window.logOut;
             } else {
                 currentUserId = null;
                 authInfoEl.innerHTML = "СТАТУС: ТРЕБУЕТСЯ АВТОРИЗАЦИЯ ДЛЯ СИНХРОНИЗАЦИИ";
                 actionBtnEl.innerText = "ВХОД ЧЕРЕЗ GOOGLE";
                 actionBtnEl.style.display = "block";
-                actionBtnEl.onclick = logIn;
+                actionBtnEl.onclick = window.logIn;
             }
         }
 
-        async function logIn() {
+        window.logIn = async function() {
             await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
@@ -113,14 +115,14 @@
             });
         }
 
-        async function logOut() {
+        window.logOut = async function() {
             await supabase.auth.signOut();
         }
 
         window.processPurchase = async function(priceRub, packId) {
             if (!currentUserId) {
                 alert("КРИТИЧЕСКАЯ ОШИБКА: Авторизуйтесь через Google перед проведением транзакции, чтобы монеты дошли до вашего аккаунта!");
-                logIn();
+                window.logIn();
                 return;
             }
 

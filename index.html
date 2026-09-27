@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PROJECT: VECTOR — Официальный сайт игры</title>
-    <script src="https://jsdelivr.net"></script>
     <style>
         body { background-color: #030a03; color: #00ff33; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 40px; }
         .container { max-width: 800px; margin: 0 auto; border: 2px solid #00ff33; padding: 30px; box-shadow: 0 0 15px rgba(0,255,51,0.2); }
@@ -64,7 +63,7 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
         const _supabaseUrl = "https://supabase.co";
         const _supabaseKey = "sb_publishable_5uZB05G4Wwi2h5I0dw4ogw_OQKeZPfQ"; 
         
@@ -76,21 +75,19 @@
 
         async function initAuth() {
             try {
-                supabase = window.supabase.createClient(_supabaseUrl, _supabaseKey);
+                const module = await import('https://esm.sh');
+                supabase = module.createClient(_supabaseUrl, _supabaseKey);
                 
-                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                const { data: { session } } = await supabase.auth.getSession();
                 
-                if (sessionError) throw sessionError;
-
                 supabase.auth.onAuthStateChange((event, currentSession) => {
                     updateUI(currentSession);
                 });
 
                 updateUI(session);
             } catch (err) {
-                console.error("Ошибка Supabase:", err);
-                authInfoEl.innerText = "СТАТУС: ГОТОВ К РАБОТЕ (ОЖИДАНИЕ ВВОДА)";
-                showManualLoginButton();
+                console.error("Ошибка инициализации Supabase:", err);
+                authInfoEl.innerText = "ОШИБКА ПОДКЛЮЧЕНИЯ К СЕРВЕРУ";
             }
         }
 
@@ -110,17 +107,8 @@
             }
         }
 
-        function showManualLoginButton() {
-            currentUserId = null;
-            actionBtnEl.innerText = "ВХОД ЧЕРЕЗ GOOGLE";
-            actionBtnEl.style.display = "block";
-            actionBtnEl.onclick = logIn;
-        }
-
         async function logIn() {
-            if (!supabase) {
-                supabase = window.supabase.createClient(_supabaseUrl, _supabaseKey);
-            }
+            if (!supabase) return;
             try {
                 await supabase.auth.signInWithOAuth({
                     provider: 'google',
@@ -129,7 +117,7 @@
                     }
                 });
             } catch (err) {
-                alert("Ошибка вызова окна Google OAuth: " + err.message);
+                console.error("Ошибка авторизации:", err);
             }
         }
 
@@ -139,9 +127,7 @@
         }
 
         async function processPurchase(priceRub, coinsToAdd) {
-            if (!supabase) {
-                supabase = window.supabase.createClient(_supabaseUrl, _supabaseKey);
-            }
+            if (!supabase) return;
 
             if (!currentUserId) {
                 alert("КРИТИЧЕСКАЯ ОШИБКА: Авторизуйтесь через Google перед проведением транзакции!");
@@ -184,7 +170,7 @@
         document.getElementById('btn-pack1').onclick = () => processPurchase(95, 1000);
         document.getElementById('btn-pack2').onclick = () => processPurchase(380, 5000);
 
-        window.addEventListener('DOMContentLoaded', initAuth);
+        initAuth();
     </script>
 </body>
 </html>

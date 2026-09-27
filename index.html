@@ -30,7 +30,7 @@
             <button id="auth-action-btn" class="auth-btn" style="display: none;"></button>
         </div>
 
-        <p>Добро пожаловать на официальную страницу дистрибуции внутриигровых ресурсов для игры PROJECT: VECTOR (ПК / Android).</p>
+        <p>Добро пожаловать на official страницу дистрибуции внутриигровых ресурсов для игры PROJECT: VECTOR (ПК / Android).</p>
         
         <h2>Внутриигровая валюта (Vector Coins)</h2>
         <p>Vector Coins — это виртуальная валюта, используемая исключительно внутри игрового симулятора PROJECT: VECTOR для разблокировки военной техники, а также оружия. Валюта не имеет реальной ценности и не подлежит обмену на реальные деньги.</p>
@@ -67,18 +67,27 @@
     <script>
         const _supabaseUrl = "https://supabase.co";
         const _supabaseKey = "sb_publishable_5uZB05G4Wwi2h5I0dw4ogw_OQKeZPfQ";
-        const supabase = window.supabase.createClient(_supabaseUrl, _supabaseKey);
+        
+        // ИСПРАВЛЕНО: Безопасная инициализация клиента, поддерживающая любые способы подключения библиотеки Supabase через CDN
+        const supabase = (window.supabase && window.supabase.createClient) 
+            ? window.supabase.createClient(_supabaseUrl, _supabaseKey) 
+            : window.Supabase.createClient(_supabaseUrl, _supabaseKey);
 
         let currentUserId = null;
 
         async function initAuth() {
-            const { data: { session } } = await supabase.auth.getSession();
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
 
-            supabase.auth.onAuthStateChange((event, currentSession) => {
-                updateUI(currentSession);
-            });
+                supabase.auth.onAuthStateChange((event, currentSession) => {
+                    updateUI(currentSession);
+                });
 
-            updateUI(session);
+                updateUI(session);
+            } catch (err) {
+                console.error("Ошибка инициализации сессии:", err);
+                document.getElementById('auth-info').innerText = "ОШИБКА СЕТЕВОГО ПОДКЛЮЧЕНИЯ К SUPABASE";
+            }
         }
 
         function updateUI(session) {

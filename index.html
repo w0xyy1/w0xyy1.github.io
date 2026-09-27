@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PROJECT: VECTOR — Официальный сайт игры</title>
-    <script src="https://jsdelivr.net"></script>
     <style>
         body { background-color: #030a03; color: #00ff33; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 40px; }
         .container { max-width: 800px; margin: 0 auto; border: 2px solid #00ff33; padding: 30px; box-shadow: 0 0 15px rgba(0,255,51,0.2); }
@@ -30,7 +29,7 @@
             <button id="auth-action-btn" class="auth-btn" style="display: none;"></button>
         </div>
 
-        <p>Добро пожаловать на official страницу дистрибуции внутриигровых ресурсов для игры PROJECT: VECTOR (ПК / Android).</p>
+        <p>Добро пожаловать на официальную страницу дистрибуции внутриигровых ресурсов для игры PROJECT: VECTOR (ПК / Android).</p>
         
         <h2>Внутриигровая валюта (Vector Coins)</h2>
         <p>Vector Coins — это виртуальная валюта, используемая исключительно внутри игрового симулятора PROJECT: VECTOR для разблокировки военной техники, а также оружия. Валюта не имеет реальной ценности и не подлежит обмену на реальные деньги.</p>
@@ -42,7 +41,7 @@
                     <div class="price">0.99 USD / 95 RUB</div>
                     <p>Базовый пакет для кастомизации</p>
                 </div>
-                <button class="buy-btn" onclick="processPurchase(95, 'pack_1000')">Приобрести</button>
+                <button class="buy-btn" onclick="window.processPurchase(95, 'pack_1000')">Приобрести</button>
             </div>
             <div class="product-card">
                 <div>
@@ -50,7 +49,7 @@
                     <div class="price">3.99 USD / 380 RUB</div>
                     <p>Расширенный пакет снабжения</p>
                 </div>
-                <button class="buy-btn" onclick="processPurchase(380, 'pack_5000')">Приобрести</button>
+                <button class="buy-btn" onclick="window.processPurchase(380, 'pack_5000')">Приобрести</button>
             </div>
         </div>
 
@@ -64,14 +63,13 @@
         </div>
     </div>
 
-    <script>
+    <!-- ИСПРАВЛЕНО: Переходим на современный модульный импорт Supabase типа type="module" -->
+    <script type="module">
+        import { createClient } from 'https://jsdelivr.net'
+
         const _supabaseUrl = "https://supabase.co";
         const _supabaseKey = "sb_publishable_5uZB05G4Wwi2h5I0dw4ogw_OQKeZPfQ";
-        
-        // ИСПРАВЛЕНО: Безопасная инициализация клиента, поддерживающая любые способы подключения библиотеки Supabase через CDN
-        const supabase = (window.supabase && window.supabase.createClient) 
-            ? window.supabase.createClient(_supabaseUrl, _supabaseKey) 
-            : window.Supabase.createClient(_supabaseUrl, _supabaseKey);
+        const supabase = createClient(_supabaseUrl, _supabaseKey);
 
         let currentUserId = null;
 
@@ -122,7 +120,8 @@
             await supabase.auth.signOut();
         }
 
-        async function processPurchase(priceRub, packId) {
+        // Привязываем функцию к глобальному окну window, чтобы кнопки в HTML видели её внутри модуля
+        window.processPurchase = async function(priceRub, packId) {
             if (!currentUserId) {
                 alert("КРИТИЧЕСКАЯ ОШИБКА: Авторизуйтесь через Google перед проведением транзакции, чтобы монеты дошли до вашего аккаунта!");
                 logIn();
